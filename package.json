@@ -1,0 +1,25 @@
+{
+  "name": "tspw",
+  "version": "1.0.0",
+  "description": "Utility to start multiple typescript watchers at once.",
+  "main": "tspw.js",
+  "scripts": {
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lochrist/tspw.git"
+  },
+  "keywords": [
+    "typescript",
+    "watcher"
+  ],
+  "author": {
+      "name": "Sebastien Phaneuf",
+      "url": "https://github.com/lochrist"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/lochrist/tspw/issues"
+  },
+  "homepage": "https://github.com/lochrist/tspw#readme"
+}
