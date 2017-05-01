@@ -17,7 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const child_process = require('child_process');
 
-const version = '1.0.0';
+const version = require('./package.json').version;
 const helpStr = `
 Version ${version}
 Syntax: tspw [options]
@@ -112,6 +112,11 @@ function extractOpts() {
         console.log('\r\n' + helpStr);
         process.exit(1);
         return null;
+    }
+
+    if (!opts.root && !opts.tsconfigs) {
+        // Assume we want to watch at root:
+        opts.root = path.resolve('.');
     }
 
     if (!opts.tsc) {
