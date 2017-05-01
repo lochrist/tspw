@@ -25,7 +25,7 @@ function extractOpts() {
     let argv = process.argv.slice(2);
     let opts = {};
     let errorMsg;
-    for (let i = 0; i < argv.length; ++i) {        
+    for (let i = 0; i < argv.length; ++i) {
         let param = argv[i];
         if (param === '-p' || param === '--projects') {
             opts.tsconfigs = [];
@@ -122,8 +122,6 @@ function findAllRecursiveProjects(dir, results) {
 }
 
 function watchTypeScript(opts) {
-    console.log(opts);
-
     let projects = [];
     if (opts.root) {
         projects = findAllRecursiveProjects(opts.root, []);
@@ -152,11 +150,11 @@ function watchTypeScript(opts) {
         });
 
         tsc.stdout.on('data', (data) => {
-            console.log(`stdout: ${data}`);
+            console.log(data);
         });
 
         tsc.stderr.on('data', (data) => {
-            console.log(`stderr: ${data}`);
+            console.log(data);
         });
     }
 }
