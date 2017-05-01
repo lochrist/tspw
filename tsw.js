@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 /**
-    Typescript Watcher (https://github.com/lochrist/typescript-watcher)
+    Typescript Watcher (https://github.com/lochrist/tsw)
 
     Utility to start multiple typescript watchers at once.
 
     Lots of projects (like Stingray editor) have multiple tsconfig.json files.
-    VsCode watcher task will only start a single watcher. `tsw` allows you to
-    start multiple watchers at once. VsCode can start `tsw` as a task.
+    Typescript only support a single tsconfig when run with the --watch switch.
+    `tsw` allows you to start multiple watchers at once on multiple "projects" (directories or tsconfig.json).
+    VsCode can easily be configured to start `tsw` as a task.
 */
 
 'use strict';
@@ -28,11 +29,11 @@ Examples:   tsw -r .
             tsw --compile -r editor/ --tsc editor/node_modules/typescript/bin/tsc --tsc-args "--listEmittedFiles --noEmitOnError"
 
 --root (-r) <rootdir> : <rootdir> and all resursive directory willl be scanned for tsconfig.json
---projects (-p) <projectDirOrFile1> <projectDirOrFile2> ... : Start watcher on the list of dir or files
---tsc (-t) <pathToTsc> : where to find tsc. By default look for globally installed.
---tsc-args <args> : string to pass to tsc
+--projects (-p) <projectDirOrFile1> <projectDirOrFile2> ... : Start watcher on the list of project dirrectories or tsconfig.json files
+--tsc (-t) <pathToTsc> : where to find tsc. By default look for globally installed (%APPDATA%/npm/node_modules/typescript/bin/tsc)
+--tsc-args <args> : custom parameters to pass to tsc. Should be specified between "" (ex: "--allowJs true")
+--compile : Compile projects and exit (do not start watchers)
 --simulate : print what watchers would be started
---compile : Only compile projects and exit
 `;
 
 function extractOpts() {

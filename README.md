@@ -3,7 +3,11 @@
 Utility to start multiple typescript watchers at once.
 
 ## Rationale
-Lots of projects (like Stingray editor) have multiple tsconfig.json files. VsCode watcher task will only start a single watcher. typescript-watcher allows you to start multiple watchers at once. VsCode can start typescript-watcher as a task.
+Lots of projects (like Stingray editor) have multiple tsconfig.json files. Typescript only support a single tsconfig when run with the --watch switch. 
+
+`tsw` allows you to start multiple watchers at once on multiple "projects" (directories or tsconfig.json).
+
+VsCode can easily be configured to start `tsw` as a task.
 
 ## Usage
 ```
