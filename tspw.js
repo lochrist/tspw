@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 /**
-    Typescript Watcher (https://github.com/lochrist/tsw)
+    Typescript Watcher (https://github.com/lochrist/tspw)
 
     Utility to start multiple typescript watchers at once.
 
     Lots of projects (like Stingray editor) have multiple tsconfig.json files.
     Typescript only support a single tsconfig when run with the --watch switch.
-    `tsw` allows you to start multiple watchers at once on multiple "projects" (directories or tsconfig.json).
-    VsCode can easily be configured to start `tsw` as a task.
+    `tspw` allows you to start multiple watchers at once on multiple "projects" (directories or tsconfig.json).
+    VsCode can easily be configured to start `tspw` as a task.
 */
 
 'use strict';
@@ -20,13 +20,13 @@ const child_process = require('child_process');
 const version = '1.0.0';
 const helpStr = `
 Version ${version}
-Syntax: tsw [options]
+Syntax: tspw [options]
 
-Examples:   tsw -r .
-            tsw -p .\editor\core .\plugins\log_console\tsconfig.json
-            tsw -r . --tsc .\node_modules\typscript\bin\tsc
-            tsw -r . --tsc-args "--allowJs true --alwaysStrict true"
-            tsw --compile -r editor/ --tsc editor/node_modules/typescript/bin/tsc --tsc-args "--listEmittedFiles --noEmitOnError"
+Examples:   tspw -r .
+            tspw -p .\editor\core .\plugins\log_console\tsconfig.json
+            tspw -r . --tsc .\node_modules\typscript\bin\tsc
+            tspw -r . --tsc-args "--allowJs true --alwaysStrict true"
+            tspw --compile -r editor/ --tsc editor/node_modules/typescript/bin/tsc --tsc-args "--listEmittedFiles --noEmitOnError"
 
 --root (-r) <rootdir> : <rootdir> and all resursive directory willl be scanned for tsconfig.json
 --projects (-p) <projectDirOrFile1> <projectDirOrFile2> ... : Start watcher on the list of project dirrectories or tsconfig.json files
