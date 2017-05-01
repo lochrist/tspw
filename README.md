@@ -1,4 +1,4 @@
-# typescript-watcher
+# tsw
 
 Utility to start multiple typescript watchers at once.
 
