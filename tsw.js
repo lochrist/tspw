@@ -1,3 +1,15 @@
+#!/usr/bin/env node
+
+/**
+    Typescript Watcher (https://github.com/lochrist/typescript-watcher)
+
+    Utility to start multiple typescript watchers at once.
+
+    Lots of projects (like Stingray editor) have multiple tsconfig.json files.
+    VsCode watcher task will only start a single watcher. `tsw` allows you to
+    start multiple watchers at once. VsCode can start `tsw` as a task.
+*/
+
 'use strict';
 
 const fs = require('fs');
@@ -7,18 +19,20 @@ const child_process = require('child_process');
 const version = '1.0.0';
 const helpStr = `
 Version ${version}
-Syntax: watch-typescript [options]
+Syntax: tsw [options]
 
-Examples:   watch-typescript -r .
-            watch-typescript -p .\editor\core .\plugins\log_console\tsconfig.json
-            watch-typescript -r . -tsc .\node_modules\typscript\bin\tsc
-            watch-typescript -r . -tsc-args "--allowJs true --alwaysStrict true"
+Examples:   tsw -r .
+            tsw -p .\editor\core .\plugins\log_console\tsconfig.json
+            tsw -r . --tsc .\node_modules\typscript\bin\tsc
+            tsw -r . --tsc-args "--allowJs true --alwaysStrict true"
+            tsw --compile -r editor/ --tsc editor/node_modules/typescript/bin/tsc --tsc-args "--listEmittedFiles --noEmitOnError"
 
 --root (-r) <rootdir> : <rootdir> and all resursive directory willl be scanned for tsconfig.json
 --projects (-p) <projectDirOrFile1> <projectDirOrFile2> ... : Start watcher on the list of dir or files
 --tsc (-t) <pathToTsc> : where to find tsc. By default look for globally installed.
 --tsc-args <args> : string to pass to tsc
 --simulate : print what watchers would be started
+--compile : Only compile projects and exit
 `;
 
 function extractOpts() {
@@ -33,7 +47,7 @@ function extractOpts() {
                 let p = path.resolve(argv[++i]);
                 if (!fs.existsSync(p)) {
                     errorMsg = "tsconfig is not doesn't exists: " + p;
-                } else if (!fs.statSync(p).isDirectory()) { 
+                } else if (!fs.statSync(p).isDirectory()) {
                     if (path.basename(p) !== 'tsconfig.json') {
                         errorMsg = "tsconfig is not tsconfig.json file or a directory: " + p;
                     }
@@ -42,7 +56,7 @@ function extractOpts() {
                 }
                 opts.tsconfigs.push(p);
             }
-            
+
             if (errorMsg) {
                 break;
             } else if (opts.tsconfigs.length === 0) {
@@ -80,10 +94,23 @@ function extractOpts() {
             }
         } else if (param === '--simulate') {
             opts.simulate = true;
+        } else if (param === '--compile') {
+            opts.compile = true;
+        } else if (param === '--help') {
+            opts.help = true;
+            console.log(helpStr);
+            process.exit(0);
         } else {
             errorMsg = 'Unhandled parameters: ' + param;
             break;
         }
+    }
+
+    if (errorMsg) {
+        console.error('error: ' + errorMsg);
+        console.log('\r\n' + helpStr);
+        process.exit(1);
+        return null;
     }
 
     if (!opts.tsc) {
@@ -91,11 +118,6 @@ function extractOpts() {
         if (!fs.existsSync(opts.tsc)) {
             errorMsg = 'No tsc installation found. Try npm install -g typescript';
         }
-    }
-
-    if (errorMsg) {
-        console.log(errorMsg);
-        return null;
     }
 
     return opts;
@@ -130,38 +152,38 @@ function watchTypeScript(opts) {
     }
 
     for (let p of projects) {
-        let args = [opts.tsc, '-w', '-p', p];
-        if (opts.tscargs) {
-            args.push(opts.tscargs);
+        let args = [opts.tsc, '-p', p];
+        if (!opts.compile) {
+            args.push('-w');
+            console.log('Watching: ', p);
+        } else {
+            console.log(`Compiling ${p}...`);
         }
-        console.log('Watching: ', p);
+        if (opts.tscargs) {
+            args = args.concat(opts.tscargs.split(' '));
+        }
         if (opts.simulate) {
             console.log(args.join(' '));
             continue;
         }
 
-        const tsc = child_process.execFile(process.execPath, args);
-        tsc.on('close', () => {
-            console.log('closing');
-        });
-
-        tsc.on('error', (e) => {
-            console.log(e);
-        });
-
-        tsc.stdout.on('data', (data) => {
-            console.log(data);
-        });
-
-        tsc.stderr.on('data', (data) => {
-            console.log(data);
-        });
+        if (opts.compile) {
+            try {
+                console.log(child_process.execFileSync(process.execPath, args).toString());
+            } catch (err) {
+                if (err.stderr.toString())
+                    console.error(err.stdout.toString());
+                console.error(`Failed to compile ${p}:\r\n${err.stdout.toString()}\r\n`);
+                process.exit(1);
+            }
+        } else {
+            const tsc = child_process.execFile(process.execPath, args);
+            tsc.on('error', (e) => console.error(e));
+            tsc.stdout.on('data', (data) => console.log(data));
+            tsc.stderr.on('data', (data) => console.error(data));
+        }
     }
 }
 
 let opts = extractOpts();
-if (opts === null || opts.help) {
-    console.log(helpStr);
-} else {
-    watchTypeScript(opts);
-}
+watchTypeScript(opts);
