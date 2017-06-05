@@ -22,15 +22,16 @@ const helpStr = `
 Version ${version}
 Syntax: tspw [options]
 
-Examples:   tspw -r .
+Examples:   tspw
+            tspw -r .
             tspw -p .\editor\core .\plugins\log_console\tsconfig.json
             tspw -r . --tsc .\node_modules\typscript\bin\tsc
             tspw -r . --tsc-args "--allowJs true --alwaysStrict true"
             tspw --compile -r editor/ --tsc editor/node_modules/typescript/bin/tsc --tsc-args "--listEmittedFiles --noEmitOnError"
 
---root (-r) <rootdir> : <rootdir> and all resursive directory willl be scanned for tsconfig.json
+--root (-r) <rootdir> : <rootdir> and all resursive directory willl be scanned for tsconfig.json. By default, look for current dir.
 --projects (-p) <projectDirOrFile1> <projectDirOrFile2> ... : Start watcher on the list of project dirrectories or tsconfig.json files
---tsc (-t) <pathToTsc> : where to find tsc. By default look for globally installed (%APPDATA%/npm/node_modules/typescript/bin/tsc)
+--tsc (-t) <pathToTsc> : where to find tsc. By default look for typescripts in local node_modules then for globally installed (%APPDATA%/npm/node_modules/typescript/bin/tsc)
 --tsc-args <args> : custom parameters to pass to tsc. Should be specified between "" (ex: "--allowJs true")
 --compile : Compile projects and exit (do not start watchers)
 --simulate : print what watchers would be started
@@ -120,10 +121,32 @@ function extractOpts() {
     }
 
     if (!opts.tsc) {
-        opts.tsc = path.join(process.env.APPDATA, 'npm', 'node_modules', 'typescript', 'bin', 'tsc');
-        if (!fs.existsSync(opts.tsc)) {
-            errorMsg = 'No tsc installation found. Try npm install -g typescript';
+        if (opts.root) {
+            let absRoot = path.resolve(path.dirname(process.argv[1]));
+            let pathExploded = path.parse(absRoot);
+            let dir = pathExploded.dir;
+            while (dir !== pathExploded.root && dir !== '.') {
+                let base = path.basename(dir);
+                if (base === 'node_modules') {
+                    let tsDir = path.join(dir, 'typescript', 'bin', 'tsc');
+                    if (fs.existsSync(tsDir)) {
+                        opts.tsc = tsDir;
+                        break;
+                    }
+                }
+                dir = path.dirname(dir);
+            }
         }
+
+        if (!opts.tsc) {
+            opts.tsc = path.join(process.env.APPDATA, 'npm', 'node_modules', 'typescript', 'bin', 'tsc');
+        }
+    }
+
+    if (!fs.existsSync(opts.tsc)) {
+        errorMsg = 'No tsc installation found. Try npm install -g typescript';
+    } else {
+        console.log('typescript: ', opts.tsc);
     }
 
     return opts;
