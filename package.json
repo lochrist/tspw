@@ -1,6 +1,6 @@
 {
   "name": "tspw",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Utility to start multiple typescript watchers at once.",
   "main": "tspw.js",
   "scripts": {},
