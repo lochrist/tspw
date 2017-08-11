@@ -22,142 +22,52 @@ const helpStr = `
 Version ${version}
 Syntax: tspw [options]
 
-Examples:   tspw
-            tspw -r .
-            tspw -p .\editor\core .\plugins\log_console\tsconfig.json
-            tspw -r . --tsc .\node_modules\typscript\bin\tsc
-            tspw -r . --tsc-args "--allowJs true --alwaysStrict true"
-            tspw --compile -r editor/ --tsc editor/node_modules/typescript/bin/tsc --tsc-args "--listEmittedFiles --noEmitOnError"
+Tspw switches:
+--compile <folder or projects> : Compile a tsconfig.json or all tsconfig.json in a folder (recursively). You can use this switch multple time.
+--watch <folder or projects> : Watch a tsconfig.json or all tsconfig.json in a folder (recursively). This is the default mode of tspw.
+--simulate : print what watchers/compilers would be started
 
---root (-r) <rootdir> : <rootdir> and all resursive directory willl be scanned for tsconfig.json. By default, look for current dir.
---projects (-p) <projectDirOrFile1> <projectDirOrFile2> ... : Start watcher on the list of project dirrectories or tsconfig.json files
+Typescript switches:
 --tsc (-t) <pathToTsc> : where to find tsc. By default look for typescripts in local node_modules then for globally installed (%APPDATA%/npm/node_modules/typescript/bin/tsc)
 --tsc-args <args> : custom parameters to pass to tsc. Should be specified between "" (ex: "--allowJs true")
---compile : Compile projects and exit (do not start watchers)
---simulate : print what watchers would be started
+
+Examples:
+
+// Watch:
+// All equivalent commands to watch the current folder:
+> tspw --watch .
+> tspw .
+> tspw
+
+// Passing arguments to tsc when starting a watcher:
+> tspw --tsc-args "--allowJs true --alwaysStrict true"
+
+// Compile:
+
+// Start parallel compilation of all tsconfig.json in plugins folder
+> tspw --compile editor/plugins
+
+// Start compilation of core/tsconfig.json. When it is done start parallel compilation of all tsconfig.json in plugins folder
+> tspw --compile editor/core --compile editor/plugins
+
+// Same as above but start watchers for all of editor tsconfig.json after compilation is done.
+> tspw --compile editor/core --compile editor/plugins --watch editor
 `;
 
-function extractOpts() {
-    let argv = process.argv.slice(2);
-    let opts = {};
-    let errorMsg;
-    for (let i = 0; i < argv.length; ++i) {
-        let param = argv[i];
-        if (param === '-p' || param === '--projects') {
-            opts.tsconfigs = [];
-            while (i + 1 < argv.length && !argv[i + 1].startsWith('-') && !errorMsg) {
-                let p = path.resolve(argv[++i]);
-                if (!fs.existsSync(p)) {
-                    errorMsg = "tsconfig is not doesn't exists: " + p;
-                } else if (!fs.statSync(p).isDirectory()) {
-                    if (path.basename(p) !== 'tsconfig.json') {
-                        errorMsg = "tsconfig is not tsconfig.json file or a directory: " + p;
-                    }
-                } else if (!fs.existsSync(path.join(p, 'tsconfig.json'))) {
-                    errorMsg = "directory doesn't contain a tsconfig.json file: " + p;
-                }
-                opts.tsconfigs.push(p);
-            }
-
-            if (errorMsg) {
-                break;
-            } else if (opts.tsconfigs.length === 0) {
-                errorMsg = 'No project specified with option ' + param;
-                break;
-            }
-        } else if (param === '-a' || param === '--tsc-args') {
-            if (i + 1 < argv.length) {
-                opts.tscargs = argv[++i];
-            } else {
-                errorMsg = 'No tsc-args specified with option ' + param;
-                break;
-            }
-        } else if (param === '-r' || param === '--root') {
-            if (i + 1 < argv.length) {
-                opts.root = path.resolve(argv[++i]);
-                if (!fs.existsSync(opts.root) || !fs.statSync(opts.root).isDirectory()) {
-                    errorMsg = "root dir doesn't exists or is not a directory: " + opts.root;
-                    break;
-                }
-            } else {
-                errorMsg = 'No root dir specified with option ' + param;
-                break;
-            }
-        } else if (param === '-t' || param === '--tsc') {
-            if (i + 1 < argv.length) {
-                opts.tsc = path.resolve(argv[++i]);
-                if (!fs.existsSync(opts.tsc) || fs.statSync(opts.tsc).isDirectory() || path.basename(opts.tsc) !== 'tsc') {
-                    errorMsg = "tsc is not valid: " + opts.tsc;
-                    break;
-                }
-            } else {
-                errorMsg = 'No tsc path specified' + param;
-                break;
-            }
-        } else if (param === '--simulate') {
-            opts.simulate = true;
-        } else if (param === '--compile') {
-            opts.compile = true;
-        } else if (param === '--help') {
-            opts.help = true;
-            console.log(helpStr);
-            process.exit(0);
-        } else {
-            errorMsg = 'Unhandled parameters: ' + param;
-            break;
-        }
-    }
-
-    if (errorMsg) {
-        console.error('error: ' + errorMsg);
-        console.log('\r\n' + helpStr);
-        process.exit(1);
-        return null;
-    }
-
-    if (!opts.root && !opts.tsconfigs) {
-        // Assume we want to watch at root:
-        opts.root = path.resolve('.');
-    }
-
-    if (!opts.tsc) {
-        if (opts.root) {
-            let absRoot = path.resolve(path.dirname(process.argv[1]));
-            let pathExploded = path.parse(absRoot);
-            let dir = pathExploded.dir;
-            while (dir !== pathExploded.root && dir !== '.') {
-                let base = path.basename(dir);
-                if (base === 'node_modules') {
-                    let tsDir = path.join(dir, 'typescript', 'bin', 'tsc');
-                    if (fs.existsSync(tsDir)) {
-                        opts.tsc = tsDir;
-                        break;
-                    }
-                }
-                dir = path.dirname(dir);
-            }
-        }
-
-        if (!opts.tsc) {
-            opts.tsc = path.join(process.env.APPDATA, 'npm', 'node_modules', 'typescript', 'bin', 'tsc');
-        }
-    }
-
-    if (!fs.existsSync(opts.tsc)) {
-        errorMsg = 'No tsc installation found. Try npm install -g typescript';
-    } else {
-        console.log('typescript: ', opts.tsc);
-    }
-
-    return opts;
-}
+Promise.series = function (items, next, initialValue) {
+    return items.reduce((p, item, key) => {
+        return p.then(pr => {
+            return next ? next(item, pr, key) : item;
+        });
+    }, Promise.resolve(initialValue));
+};
 
 function findAllRecursiveProjects(dir, results) {
     let entries = fs.readdirSync(dir);
     let childDirs = [];
     for (let e of entries) {
         if (e === 'tsconfig.json') {
-            results.push(dir);
+            results.push(path.join(dir, 'tsconfig.json'));
             continue;
         }
         let absEntry = path.resolve(dir, e);
@@ -172,47 +82,232 @@ function findAllRecursiveProjects(dir, results) {
     return results;
 }
 
-function watchTypeScript(opts) {
-    let projects = [];
-    if (opts.root) {
-        projects = findAllRecursiveProjects(opts.root, []);
-    } else if (opts.tsconfigs) {
-        projects = opts.tsconfigs;
+function resolvePath(potentialPath) {
+    let result = {};
+    if (!fs.existsSync(potentialPath)) {
+        result.errorMsg = "path does not doesn't exists: " + potentialPath;
+    } else if (fs.statSync(potentialPath).isDirectory()) {
+        result.projects = [];
+        findAllRecursiveProjects(potentialPath, result.projects);
+    } else if (path.basename(potentialPath) !== 'tsconfig.json') {
+        result.errorMsg = "path is not tsconfig.json file";
+    } else {
+        result.projects = [potentialPath];
     }
 
-    for (let p of projects) {
-        let args = [opts.tsc, '-p', p];
-        if (!opts.compile) {
-            args.push('-w');
-            console.log('Watching: ', p);
-        } else {
-            console.log(`Compiling ${p}...`);
-        }
-        if (opts.tscargs) {
-            args = args.concat(opts.tscargs.split(' '));
-        }
-        if (opts.simulate) {
-            console.log(args.join(' '));
-            continue;
-        }
+    return result;
+}
 
-        if (opts.compile) {
-            try {
-                console.log(child_process.execFileSync(process.execPath, args).toString());
-            } catch (err) {
-                if (err.stderr.toString())
-                    console.error(err.stdout.toString());
-                console.error(`Failed to compile ${p}:\r\n${err.stdout.toString()}\r\n`);
-                process.exit(1);
+function resolvePathArg(args, i) {
+    let result = {};
+    if (i >= args.length) {
+        result.errorMsg = 'no path specified';
+        return result;
+    } 
+    
+    let potentialPath = args[i + 1];
+    if (potentialPath.startsWith('-')) {
+        result.errorMsg = 'not a valid path: ' + potentialPath;
+        return result;
+    } 
+
+    let p = path.resolve(potentialPath);
+    return resolvePath(p);
+}
+
+function extractOpts() {
+    let argv = process.argv.slice(2);
+    let opts = {
+        simulate: false,
+        compile: false,
+        compilationBatches: [],
+        watch: false,
+        watchProjects: [],
+        tsc: null,
+        tscargs: null
+    };
+    let errorMsg;
+    for (let i = 0; i < argv.length; ++i) {
+        let param = argv[i];
+        if (param === '-a' || param === '--tsc-args') {
+            if (i + 1 < argv.length) {
+                opts.tscargs = argv[++i];
+            } else {
+                return 'No tsc-args specified with option ' + param;
+            }
+        } else if (param === '-t' || param === '--tsc') {
+            if (i + 1 < argv.length) {
+                opts.tsc = path.resolve(argv[++i]);
+                if (!fs.existsSync(opts.tsc) || fs.statSync(opts.tsc).isDirectory() || path.basename(opts.tsc) !== 'tsc') {
+                    return "tsc is not valid: " + opts.tsc;
+                }
+            } else {
+                return 'No tsc path specified' + param;
+            }
+        } else if (param === '--simulate') {
+            opts.simulate = true;
+        } else if (param === '--compile') {
+            opts.compile = true;
+            let pathResult = resolvePathArg(argv, i);
+            if (pathResult.errorMsg) {
+                return pathResult.errorMsg;
+            }
+            ++i;
+
+            opts.compilationBatches.push({
+                src: argv[i],
+                projects: pathResult.projects
+            });
+        } else if (param === '--watch') {
+            opts.watch = true;
+
+            let pathResult = resolvePathArg(argv, i);
+            if (pathResult.errorMsg) {
+                return pathResult.errorMsg;
+            }
+            ++i;
+
+            opts.watchProjects = opts.watchProjects.concat(pathResult.projects);
+        } else if (param === '--help') {
+            opts.help = true;
+            console.log(helpStr);
+            process.exit(0);
+        } else if (!opts.compile && !opts.watch) {
+            // Default with path arguments is watch
+            opts.watch = true;
+            while (i < argv.length) {
+                let pathResult = resolvePath(argv[i]);
+                if (pathResult.errorMsg) {
+                    return pathResult.errorMsg;
+                }
+                opts.watchProjects = opts.watchProjects.concat(pathResult.projects);
+                ++i;
             }
         } else {
-            const tsc = child_process.execFile(process.execPath, args);
+            return 'Unhandled parameters: ' + param;
+        }
+    }
+
+    if (errorMsg) {
+        console.error('error: ' + errorMsg);
+        console.log('\r\n' + helpStr);
+        process.exit(1);
+        return null;
+    }
+
+    if (!opts.compile && !opts.watch) {
+        // Assume a watch in current dir:
+        opts.watch = true;
+        let pathResult = resolvePath('.');
+        if (pathResult.errorMsg) {
+            return pathResult.errorMsg;
+        }
+        opts.watchProjects = opts.watchProjects.concat(pathResult.projects);
+    }
+
+    if (!opts.tsc) {
+        let absRoot = path.resolve(path.dirname(process.argv[1]));
+        let pathExploded = path.parse(absRoot);
+        let dir = pathExploded.dir;
+        while (dir !== pathExploded.root && dir !== '.') {
+            let base = path.basename(dir);
+            if (base === 'node_modules') {
+                let tsDir = path.join(dir, 'typescript', 'bin', 'tsc');
+                if (fs.existsSync(tsDir)) {
+                    opts.tsc = tsDir;
+                    break;
+                }
+            }
+            dir = path.dirname(dir);
+        }
+
+        if (!opts.tsc) {
+            opts.tsc = path.join(process.env.APPDATA, 'npm', 'node_modules', 'typescript', 'bin', 'tsc');
+        }
+    }
+
+    if (!fs.existsSync(opts.tsc)) {
+        return 'No tsc installation found. Try npm install -g typescript';
+    } else {
+        console.log('typescript: ', opts.tsc);
+    }
+
+    return opts;
+}
+
+function makePromise(functor) {
+    return new Promise((resolve, reject) => {
+        functor((err, result) => {
+            if (err) {
+                return reject(err);
+            }
+            return resolve(result);
+        });
+    });
+}
+
+function makeTscArgs(tspwOpts, cmdArgs) {
+    let tscArgs = [tspwOpts.tsc].concat(cmdArgs);
+    if (tspwOpts.tscargs) {
+        tscArgs = tscArgs.concat(tspwOpts.tscargs.split(' '));
+    }
+    return tscArgs;
+}
+
+function compileBatch(tspwOpts, batch) {
+    if (!batch.src.endsWith('json')) {
+        console.log('Start Compilation for: ', batch.src);
+    }
+    return Promise.all(batch.projects.map(project => {
+        let processArgs = makeTscArgs(tspwOpts, ['-p', project]);
+        if (tspwOpts.simulate) {
+            console.log(`Simulate Compiling ` + processArgs.join(' '));
+            return Promise.resolve();
+        }
+        console.log(`Compiling ${project}...`);
+        return makePromise(endCb => child_process.execFile(process.execPath, processArgs, endCb));
+    }));
+}
+
+function tspwExecute(tspwOpts) {
+    return Promise.resolve().then(() => {
+        // Compilation step
+        if (!tspwOpts.compile || tspwOpts.compilationBatches.length === 0) {
+            return;
+        }
+
+        // Compile each project in a batch in parallel, but wait for the batch to end before starting another one:
+        return Promise.series(tspwOpts.compilationBatches, batch => compileBatch(tspwOpts, batch)).then( () => {
+            console.log('Compilation done');
+        });
+    }).then(() => {
+        // Watch Step:
+        if (!tspwOpts.watch || tspwOpts.watchProjects.length === 0) {
+            return;
+        }
+
+        for (let p of tspwOpts.watchProjects) {
+            let processArgs = makeTscArgs(tspwOpts, ['-p', p, '-w']);
+            if (opts.simulate) {
+                console.log('Simulate watching: ' + processArgs.join(' '));
+                continue;
+            }
+
+            console.log('Watching: ' + p);
+            const tsc = child_process.execFile(process.execPath, processArgs);
             tsc.on('error', (e) => console.error(e));
             tsc.stdout.on('data', (data) => console.log(data));
             tsc.stderr.on('data', (data) => console.error(data));
         }
-    }
+    });
 }
 
 let opts = extractOpts();
-watchTypeScript(opts);
+if (typeof opts === 'string') {
+    console.error('error: ' + opts);
+    console.log('\r\n' + helpStr);
+    process.exit(1);
+    return null;
+}
+
+tspwExecute(opts);

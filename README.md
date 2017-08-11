@@ -11,20 +11,36 @@ VsCode can easily be configured to start `tspw` as a task.
 
 ## Usage
 ```
-Version ${version}
 Syntax: tspw [options]
 
-Examples:   tspw
-            tspw -r .
-            tspw -p .\editor\core .\plugins\log_console\tsconfig.json
-            tspw -r . --tsc .\node_modules\typscript\bin\tsc
-            tspw -r . --tsc-args "--allowJs true --alwaysStrict true"
-            tspw --compile -r editor/ --tsc editor/node_modules/typescript/bin/tsc --tsc-args "--listEmittedFiles --noEmitOnError"
+Tspw switches:
+--compile <folder or projects> : Compile a tsconfig.json or all tsconfig.json in a folder (recursively). You can use this switch multple time.
+--watch <folder or projects> : Watch a tsconfig.json or all tsconfig.json in a folder (recursively). This is the default mode of tspw.
+--simulate : print what watchers/compilers would be started
 
---root (-r) <rootdir> : <rootdir> and all resursive directory willl be scanned for tsconfig.json. By default, look for current dir.
---projects (-p) <projectDirOrFile1> <projectDirOrFile2> ... : Start watcher on the list of project dirrectories or tsconfig.json files
+Typescript switches:
 --tsc (-t) <pathToTsc> : where to find tsc. By default look for typescripts in local node_modules then for globally installed (%APPDATA%/npm/node_modules/typescript/bin/tsc)
 --tsc-args <args> : custom parameters to pass to tsc. Should be specified between "" (ex: "--allowJs true")
---compile : Compile projects and exit (do not start watchers)
---simulate : print what watchers would be started
+
+Examples:
+
+// Watch:
+// All equivalent commands to watch the current folder:
+> tspw --watch .
+> tspw .
+> tspw
+
+// Passing arguments to tsc when starting a watcher:
+> tspw --tsc-args "--allowJs true --alwaysStrict true"
+
+// Compile:
+
+// Start parallel compilation of all tsconfig.json in plugins folder
+> tspw --compile editor/plugins
+
+// Start compilation of core/tsconfig.json. When it is done start parallel compilation of all tsconfig.json in plugins folder
+> tspw --compile editor/core --compile editor/plugins
+
+// Same as above but start watchers for all of editor tsconfig.json after compilation is done.
+> tspw --compile editor/core --compile editor/plugins --watch editor
 ```
